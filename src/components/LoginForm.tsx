@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from './AuthContext';
-import { UserRole } from '@/types/auth';
+import { UserRole, StudentData, TeacherData, SchoolData } from '@/types/auth';
 import { ArrowRightCircle, Clock } from 'lucide-react';
 
 const baseSchema = z.object({
@@ -75,16 +75,37 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
 
   // Handle form submission
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    // Transform the teachingGrades from string to array for teacher
+    // Create properly typed userData based on role
     if (userRole === 'teacher') {
-      const teacherData = {
-        ...data,
-        role: userRole,
+      const teacherData: TeacherData = {
+        role: 'teacher',
+        name: data.name,
+        phone: data.phone,
+        location: data.location,
+        teachingSchool: (data as any).teachingSchool || '',
         teachingGrades: (data as any).teachingGrades.split(',').map((grade: string) => grade.trim()),
       };
       login(teacherData, data.rememberMe);
+    } else if (userRole === 'student') {
+      const studentData: StudentData = {
+        role: 'student',
+        name: data.name,
+        phone: data.phone,
+        location: data.location,
+        school: (data as any).school || '',
+        age: (data as any).age || 16,
+        grade: (data as any).grade || '',
+      };
+      login(studentData, data.rememberMe);
     } else {
-      login({ ...data, role: userRole }, data.rememberMe);
+      const schoolData: SchoolData = {
+        role: 'school',
+        name: data.name,
+        phone: data.phone,
+        location: data.location,
+        ceoName: (data as any).ceoName || '',
+      };
+      login(schoolData, data.rememberMe);
     }
     navigate('/home');
   };
