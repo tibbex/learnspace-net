@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthState, UserData, UserRole } from '@/types/auth';
 import { toast } from 'sonner';
-import { auth as firebaseAuth, db } from '@/services/firebase';
+import { auth, db } from '@/services/firebase';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for authenticated user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+    // Use the imported auth object from firebase.ts
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           // Fetch user data from Firestore
@@ -133,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = `${userData.phone.replace(/\D/g, '')}@eduhub.com`;
       
       // Register user with Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
       // Save user data to Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -172,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = `${userData.phone.replace(/\D/g, '')}@eduhub.com`;
       
       // Sign in with Firebase Auth
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       
       // Update local state
       const newAuthState: AuthState = {
@@ -228,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       if (!auth.isDemo) {
-        await signOut(firebaseAuth);
+        await signOut(auth);
       }
       
       setAuth(initialAuthState);
