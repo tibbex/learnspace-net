@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ThumbsUp, 
@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   RefreshCw,
   Users,
-  TrendingUp
+  TrendingUp,
+  Loader
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -35,86 +36,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthContext';
 import DemoNotification from '@/components/DemoNotification';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-// Sample data for the posts
-const posts = [
-  {
-    id: 1,
-    author: {
-      name: 'Mrs. Johnson',
-      role: 'teacher',
-      avatar: '',
-      initial: 'J',
-    },
-    time: '2 hours ago',
-    content: 'Just uploaded new study materials for the upcoming biology test. Make sure to review chapters 5-7!',
-    likes: 24,
-    comments: 8,
-    shares: 3,
-    type: 'text',
-    subject: 'Biology'
-  },
-  {
-    id: 2,
-    author: {
-      name: 'Science Club',
-      role: 'student',
-      avatar: '',
-      initial: 'S',
-    },
-    time: '5 hours ago',
-    content: 'Check out our latest chemistry experiment video. We explored the fascinating world of polymers!',
-    media: {
-      type: 'video',
-      thumbnail: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-    },
-    likes: 45,
-    comments: 12,
-    shares: 7,
-    type: 'video',
-    subject: 'Chemistry'
-  },
-  {
-    id: 3,
-    author: {
-      name: 'Westlake High',
-      role: 'school',
-      avatar: '',
-      initial: 'W',
-    },
-    time: '1 day ago',
-    content: 'Attention all students! We\'ve just uploaded the new course catalog for the upcoming semester. Please review and register for your courses by Friday.',
-    media: {
-      type: 'document',
-      title: 'Spring Semester Course Catalog.pdf',
-    },
-    likes: 83,
-    comments: 32,
-    shares: 19,
-    type: 'document',
-    subject: 'Announcement'
-  },
-  {
-    id: 4,
-    author: {
-      name: 'Math Study Group',
-      role: 'student',
-      avatar: '',
-      initial: 'M',
-    },
-    time: '2 days ago',
-    content: 'We created this helpful cheat sheet for calculus. Hope it helps everyone with their finals!',
-    media: {
-      type: 'document',
-      title: 'Calculus_Cheat_Sheet.pdf',
-    },
-    likes: 122,
-    comments: 17,
-    shares: 38,
-    type: 'document',
-    subject: 'Mathematics'
-  }
-];
+// Interface for posts from the database
+interface Post {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  files: {
+    type: 'document' | 'image' | 'video' | 'audio';
+    name: string;
+    size: string;
+    url: string;
+  }[];
+  profile?: {
+    name: string;
+    role: string;
+  };
+  likes?: number;
+  comments?: number;
+  shares?: number;
+}
 
 // Sample data for suggested connections
 const suggestedConnections = [
@@ -170,29 +114,114 @@ const recommendedResources = [
 ];
 
 // Post Item component
-const PostItem: React.FC<{post: typeof posts[0]}> = ({ post }) => {
+const PostItem: React.FC<{post: Post}> = ({ post }) => {
+  const [showFullContent, setShowFullContent] = useState(false);
+  const [profile, setProfile] = useState<{name: string, role: string} | null>(null);
+  
+  // Fetch the user profile if not already included
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (post.profile) {
+        setProfile(post.profile);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('name, role')
+          .eq('id', post.user_id)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+        
+        if (data) {
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error('Error in fetchProfile:', error);
+      }
+    };
+    
+    fetchProfile();
+  }, [post]);
+  
+  if (!profile) {
+    return (
+      <Card className="mb-6 overflow-hidden shadow-sm border-gray-100 animate-fadeIn">
+        <CardContent className="flex items-center justify-center py-10">
+          <Loader className="h-6 w-6 animate-spin text-gray-400" />
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Format created_at date
+  const timeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffDay > 0) {
+      return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    } else if (diffHour > 0) {
+      return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    } else if (diffMin > 0) {
+      return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    } else {
+      return 'just now';
+    }
+  };
+  
+  // Truncate content if it's too long
+  const contentPreview = post.content.length > 300 && !showFullContent
+    ? post.content.substring(0, 300) + '...'
+    : post.content;
+    
+  // Get the first letter of the user's name as initial
+  const userInitial = profile.name.charAt(0) || 'U';
+  
+  // Set placeholder engagement metrics
+  const likes = post.likes || Math.floor(Math.random() * 50) + 1;
+  const comments = post.comments || Math.floor(Math.random() * 20);
+  const shares = post.shares || Math.floor(Math.random() * 10);
+  
+  // Find any hashtags in the content
+  const hashtagRegex = /#\w+/g;
+  const hashtags = post.content.match(hashtagRegex) || [];
+  
+  // Extract media from files
+  const media = post.files && post.files.length > 0 ? post.files[0] : null;
+  
   return (
     <Card className="mb-6 overflow-hidden shadow-sm border-gray-100 animate-fadeIn">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <div className="flex items-center space-x-3">
           <Avatar>
-            <AvatarImage src={post.author.avatar} />
+            <AvatarImage src="" />
             <AvatarFallback className={`
-              ${post.author.role === 'teacher' ? 'bg-eduPurple' : 
-                post.author.role === 'student' ? 'bg-eduBlue' : 'bg-eduTeal'} 
+              ${profile.role === 'teacher' ? 'bg-eduPurple' : 
+                profile.role === 'student' ? 'bg-eduBlue' : 'bg-eduTeal'} 
               text-white
             `}>
-              {post.author.initial}
+              {userInitial}
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-medium">{post.author.name}</CardTitle>
+              <CardTitle className="text-base font-medium">{profile.name}</CardTitle>
               <Badge variant="outline" className="text-xs capitalize">
-                {post.author.role}
+                {profile.role}
               </Badge>
             </div>
-            <CardDescription className="text-xs">{post.time}</CardDescription>
+            <CardDescription className="text-xs">{timeAgo(post.created_at)}</CardDescription>
           </div>
         </div>
         <DropdownMenu>
@@ -211,16 +240,36 @@ const PostItem: React.FC<{post: typeof posts[0]}> = ({ post }) => {
       </CardHeader>
       <CardContent className="pb-3">
         <div className="mb-4">
-          <p className="text-sm">{post.content}</p>
+          <p className="text-sm whitespace-pre-wrap">{contentPreview}</p>
+          {post.content.length > 300 && (
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="p-0 h-auto text-eduBlue"
+              onClick={() => setShowFullContent(!showFullContent)}
+            >
+              {showFullContent ? 'Show less' : 'Read more'}
+            </Button>
+          )}
         </div>
         
-        {post.media && (
+        {media && (
           <div className="mt-3 rounded-lg overflow-hidden">
-            {post.media.type === 'video' && (
+            {media.type === 'image' && (
               <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
                 <img 
-                  src={post.media.thumbnail} 
-                  alt="Video thumbnail" 
+                  src={media.url} 
+                  alt={media.name} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
+            {media.type === 'video' && (
+              <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                <img 
+                  src={media.url} 
+                  alt={media.name} 
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -231,39 +280,47 @@ const PostItem: React.FC<{post: typeof posts[0]}> = ({ post }) => {
               </div>
             )}
             
-            {post.media.type === 'document' && (
+            {(media.type === 'document' || media.type === 'audio') && (
               <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="h-10 w-10 rounded-lg bg-eduBlue/10 flex items-center justify-center mr-3">
-                  <FileText className="h-5 w-5 text-eduBlue" />
+                  {media.type === 'document' ? (
+                    <FileText className="h-5 w-5 text-eduBlue" />
+                  ) : (
+                    <BookOpen className="h-5 w-5 text-eduTeal" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{post.media.title}</p>
-                  <p className="text-xs text-gray-500">Click to view document</p>
+                  <p className="text-sm font-medium">{media.name}</p>
+                  <p className="text-xs text-gray-500">{media.size} • Click to view</p>
                 </div>
               </div>
             )}
           </div>
         )}
         
-        <div className="flex items-center space-x-2 mt-3">
-          <Badge variant="secondary" className="text-xs font-normal rounded-full">
-            {post.subject}
-          </Badge>
-        </div>
+        {hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {hashtags.map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs font-normal rounded-full">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardContent>
       <CardFooter className="pt-0 border-t">
         <div className="flex items-center justify-between w-full">
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduBlue hover:bg-eduBlue/5">
             <ThumbsUp className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.likes}</span>
+            <span className="text-xs">{likes}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduPurple hover:bg-eduPurple/5">
             <MessageCircle className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.comments}</span>
+            <span className="text-xs">{comments}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduTeal hover:bg-eduTeal/5">
             <Share2 className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.shares}</span>
+            <span className="text-xs">{shares}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduOrange hover:bg-eduOrange/5">
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -278,6 +335,58 @@ const PostItem: React.FC<{post: typeof posts[0]}> = ({ post }) => {
 const HomePage: React.FC = () => {
   const { auth } = useAuth();
   const userRole = auth.userData?.role || 'student';
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  
+  // Fetch posts from Supabase
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        
+        let query = supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Error fetching posts:', error);
+          toast.error('Failed to load posts. Please try again.');
+          return;
+        }
+        
+        if (data) {
+          setPosts(data as Post[]);
+        }
+      } catch (error) {
+        console.error('Error in fetchPosts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPosts();
+    
+    // Set up real-time subscription for new posts
+    const postsSubscription = supabase
+      .channel('public:posts')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public',
+        table: 'posts'
+      }, (payload) => {
+        // Add new post to the top of the list
+        setPosts(current => [payload.new as Post, ...current]);
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(postsSubscription);
+    };
+  }, []);
   
   return (
     <div className="page-container pb-20">
@@ -356,7 +465,7 @@ const HomePage: React.FC = () => {
         
         {/* Main content */}
         <div className="lg:col-span-6">
-          <Tabs defaultValue="all">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between mb-4">
               <TabsList className="bg-transparent border p-1">
                 <TabsTrigger 
@@ -387,9 +496,32 @@ const HomePage: React.FC = () => {
             </div>
             
             <TabsContent value="all" className="mt-0">
-              {posts.map(post => (
-                <PostItem key={post.id} post={post} />
-              ))}
+              {loading ? (
+                <Card className="border-gray-100 shadow-sm">
+                  <CardContent className="p-12 text-center">
+                    <Loader className="h-8 w-8 mx-auto mb-4 animate-spin text-gray-400" />
+                    <p className="text-muted-foreground">Loading posts...</p>
+                  </CardContent>
+                </Card>
+              ) : posts.length > 0 ? (
+                posts.map(post => (
+                  <PostItem key={post.id} post={post} />
+                ))
+              ) : (
+                <Card className="border-gray-100 shadow-sm">
+                  <CardContent className="p-12 text-center">
+                    <h3 className="text-lg font-medium mb-2">No posts yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Be the first to create a post in the community.
+                    </p>
+                    <Button asChild>
+                      <Link to="/create-post">
+                        Create Your First Post
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
             <TabsContent value="following" className="mt-0">
@@ -410,33 +542,51 @@ const HomePage: React.FC = () => {
             </TabsContent>
             
             <TabsContent value="trending" className="mt-0">
-              <Card className="border-gray-100 shadow-sm mb-6">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center space-x-2">
-                    <TrendingUp className="h-5 w-5 text-eduOrange" />
-                    <CardTitle className="text-base">Trending in Education</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {posts.slice(0, 2).map((post, index) => (
-                      <div key={index} className="flex items-start space-x-3">
-                        <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium">{post.subject}</h4>
-                          <p className="text-xs text-gray-500">{post.likes + post.comments * 2} engagements</p>
-                        </div>
+              {posts.length > 0 ? (
+                <>
+                  <Card className="border-gray-100 shadow-sm mb-6">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="h-5 w-5 text-eduOrange" />
+                        <CardTitle className="text-base">Trending in Education</CardTitle>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {posts.slice(1, 3).map(post => (
-                <PostItem key={post.id} post={post} />
-              ))}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {posts.slice(0, 2).map((post, index) => (
+                          <div key={index} className="flex items-start space-x-3">
+                            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-medium">
+                                {post.content.substring(0, 30)}...
+                              </h4>
+                              <p className="text-xs text-gray-500">
+                                {Math.floor(Math.random() * 100) + 50} engagements
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {posts.slice(0, 2).map(post => (
+                    <PostItem key={post.id} post={post} />
+                  ))}
+                </>
+              ) : (
+                <Card className="border-gray-100 shadow-sm">
+                  <CardContent className="p-8 text-center">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-medium mb-2">No trending posts yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Check back soon to see what's trending in the community.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
