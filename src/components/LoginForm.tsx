@@ -12,15 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from './AuthContext';
 import { UserRole } from '@/types/auth';
-import { ArrowRightCircle, Clock, Eye, EyeOff } from 'lucide-react';
-
-const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters.' });
+import { ArrowRightCircle, Clock } from 'lucide-react';
 
 const baseSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   phone: z.string().min(10, { message: 'Please enter a valid phone number.' }),
   location: z.string().min(2, { message: 'Please enter your location.' }),
-  password: passwordSchema,
   rememberMe: z.boolean().default(false),
 });
 
@@ -45,9 +42,7 @@ type LoginFormProps = {
 
 const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
   const [userRole, setUserRole] = useState<UserRole>('student');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const { login, startDemo, signup } = useAuth();
+  const { login, startDemo } = useAuth();
   const navigate = useNavigate();
   
   // Use different schemas based on the selected role
@@ -62,7 +57,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
       name: '',
       phone: '',
       location: '',
-      password: '',
       rememberMe: false,
       ...(userRole === 'student' && { 
         school: '',
@@ -80,63 +74,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
   });
 
   // Handle form submission
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
-    try {
-      if (userRole === 'student') {
-        const studentData = {
-          role: userRole,
-          name: data.name,
-          phone: data.phone,
-          location: data.location,
-          school: (data as any).school,
-          age: (data as any).age,
-          grade: (data as any).grade,
-        };
-        
-        if (mode === 'signup') {
-          await signup(studentData, data.password, data.rememberMe);
-        } else {
-          await login(studentData, data.rememberMe, data.password);
-        }
-      } else if (userRole === 'teacher') {
-        const teacherData = {
-          role: userRole,
-          name: data.name,
-          phone: data.phone,
-          location: data.location,
-          teachingSchool: (data as any).teachingSchool,
-          teachingGrades: (data as any).teachingGrades.split(',').map((grade: string) => grade.trim()),
-        };
-        
-        if (mode === 'signup') {
-          await signup(teacherData, data.password, data.rememberMe);
-        } else {
-          await login(teacherData, data.rememberMe, data.password);
-        }
-      } else if (userRole === 'school') {
-        const schoolData = {
-          role: userRole,
-          name: data.name,
-          phone: data.phone,
-          location: data.location,
-          ceoName: (data as any).ceoName,
-        };
-        
-        if (mode === 'signup') {
-          await signup(schoolData, data.password, data.rememberMe);
-        } else {
-          await login(schoolData, data.rememberMe, data.password);
-        }
-      }
-      
-      navigate('/home');
-    } catch (error) {
-      console.error('Authentication error:', error);
-      // Error is already shown by the auth context
-    } finally {
-      setIsLoading(false);
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    // Transform the teachingGrades from string to array for teacher
+    if (userRole === 'teacher') {
+      const teacherData = {
+        ...data,
+        role: userRole,
+        teachingGrades: (data as any).teachingGrades.split(',').map((grade: string) => grade.trim()),
+      };
+      login(teacherData, data.rememberMe);
+    } else {
+      login({ ...data, role: userRole }, data.rememberMe);
     }
+    navigate('/home');
   };
 
   const handleDemoMode = () => {
@@ -151,7 +101,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
       name: form.getValues('name'),
       phone: form.getValues('phone'),
       location: form.getValues('location'),
-      password: form.getValues('password'),
       rememberMe: form.getValues('rememberMe'),
     });
   };
@@ -319,34 +268,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
                 
                 <FormField
                   control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="Enter your password" 
-                            {...field} 
-                            className="rounded-lg pr-10" 
-                          />
-                        </FormControl>
-                        <button 
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
                   name="rememberMe"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center space-x-2 space-y-0">
@@ -368,15 +289,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
                 <Button 
                   type="submit" 
                   className="w-full primary-button mt-6"
-                  disabled={isLoading}
                 >
-                  {isLoading 
-                    ? 'Processing...' 
-                    : mode === 'login' 
-                      ? 'Sign In' 
-                      : 'Sign Up'
-                  }
-                  {!isLoading && <ArrowRightCircle className="ml-2 h-5 w-5" />}
+                  {mode === 'login' ? 'Sign In' : 'Sign Up'}
+                  <ArrowRightCircle className="ml-2 h-5 w-5" />
                 </Button>
               </form>
             </Form>
