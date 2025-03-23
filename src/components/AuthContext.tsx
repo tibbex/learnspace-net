@@ -2,12 +2,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthState, UserData, UserRole } from '@/types/auth';
 import { toast } from 'sonner';
+import { auth, db } from '@/services/firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp 
+} from 'firebase/firestore';
 
 interface AuthContextType {
   auth: AuthState;
-  login: (userData: UserData, rememberMe: boolean) => void;
+  login: (userData: UserData, rememberMe: boolean, password: string) => Promise<void>;
   startDemo: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  signup: (userData: UserData, password: string, rememberMe: boolean) => Promise<void>;
   isDemo: boolean;
   demoTimeRemaining: number | null;
 }
@@ -28,19 +42,69 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(initialAuthState);
   const [demoTimeRemaining, setDemoTimeRemaining] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load saved auth state from localStorage
+  // Check for authenticated user
   useEffect(() => {
-    const savedAuthData = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (savedAuthData) {
-      try {
-        const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
-        setAuth(parsedAuthData);
-      } catch (error) {
-        console.error('Failed to parse saved auth data:', error);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Fetch user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserData;
+            const rememberMe = localStorage.getItem('rememberMe') === 'true';
+            
+            setAuth({
+              isAuthenticated: true,
+              userData,
+              isDemo: false,
+              demoStartTime: null,
+              rememberMe,
+            });
+          } else {
+            // User exists in Auth but not in Firestore
+            await logout();
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          toast.error('Error loading your profile. Please try again.');
+        }
+      } else {
+        // Check for demo user in localStorage
+        const savedAuthData = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (savedAuthData) {
+          try {
+            const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
+            if (parsedAuthData.isDemo) {
+              // If in demo mode, check if it's still valid
+              if (parsedAuthData.demoStartTime) {
+                const elapsedTime = Date.now() - parsedAuthData.demoStartTime;
+                if (elapsedTime < DEMO_DURATION) {
+                  setAuth(parsedAuthData);
+                } else {
+                  localStorage.removeItem(AUTH_STORAGE_KEY);
+                  setAuth(initialAuthState);
+                }
+              }
+            } else if (parsedAuthData.rememberMe) {
+              // If remember me was enabled but Firebase session expired, clear localStorage
+              localStorage.removeItem(AUTH_STORAGE_KEY);
+              setAuth(initialAuthState);
+            }
+          } catch (error) {
+            console.error('Failed to parse saved auth data:', error);
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            setAuth(initialAuthState);
+          }
+        } else {
+          setAuth(initialAuthState);
+        }
       }
-    }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Handle demo timing
@@ -63,25 +127,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(intervalId);
   }, [auth.isDemo, auth.demoStartTime]);
 
-  const login = (userData: UserData, rememberMe: boolean) => {
-    const newAuthState: AuthState = {
-      isAuthenticated: true,
-      userData,
-      isDemo: false,
-      demoStartTime: null,
-      rememberMe,
-    };
-    
-    setAuth(newAuthState);
-    
-    if (rememberMe) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
-    } else {
-      // Remove any previously saved data if remember me is off
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+  const signup = async (userData: UserData, password: string, rememberMe: boolean) => {
+    try {
+      // Create email from phone number (as a simple unique identifier)
+      const email = `${userData.phone.replace(/\D/g, '')}@eduhub.com`;
+      
+      // Register user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Save user data to Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        ...userData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      
+      // Update local state
+      const newAuthState: AuthState = {
+        isAuthenticated: true,
+        userData,
+        isDemo: false,
+        demoStartTime: null,
+        rememberMe,
+      };
+      
+      setAuth(newAuthState);
+      
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+      }
+      
+      toast.success(`Welcome, ${userData.name}!`);
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      toast.error(error.message || 'Failed to create account. Please try again.');
+      throw error;
     }
-    
-    toast.success(`Welcome, ${userData.name}!`);
+  };
+
+  const login = async (userData: UserData, rememberMe: boolean, password: string) => {
+    try {
+      // Create email from phone number
+      const email = `${userData.phone.replace(/\D/g, '')}@eduhub.com`;
+      
+      // Sign in with Firebase Auth
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // Update local state
+      const newAuthState: AuthState = {
+        isAuthenticated: true,
+        userData,
+        isDemo: false,
+        demoStartTime: null,
+        rememberMe,
+      };
+      
+      setAuth(newAuthState);
+      
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+      } else {
+        localStorage.removeItem('rememberMe');
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+      
+      toast.success(`Welcome back, ${userData.name}!`);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Failed to sign in. Please check your credentials.');
+      throw error;
+    }
   };
 
   const startDemo = () => {
@@ -104,18 +221,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     setAuth(demoData);
     setDemoTimeRemaining(DEMO_DURATION);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoData));
     toast.info('You are using demo mode. You have 10 minutes to explore EduHub.');
   };
 
-  const logout = () => {
-    setAuth(initialAuthState);
-    setDemoTimeRemaining(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    toast.info('You have been logged out.');
+  const logout = async () => {
+    try {
+      if (!auth.isDemo) {
+        await signOut(auth);
+      }
+      
+      setAuth(initialAuthState);
+      setDemoTimeRemaining(null);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem('rememberMe');
+      toast.info('You have been logged out.');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out. Please try again.');
+    }
   };
 
+  if (loading) {
+    // You could return a loading spinner here if needed
+    return <div>Loading...</div>;
+  }
+
   return (
-    <AuthContext.Provider value={{ auth, login, startDemo, logout, isDemo: auth.isDemo, demoTimeRemaining }}>
+    <AuthContext.Provider value={{ 
+      auth, 
+      login, 
+      startDemo, 
+      logout, 
+      signup,
+      isDemo: auth.isDemo, 
+      demoTimeRemaining 
+    }}>
       {children}
     </AuthContext.Provider>
   );
