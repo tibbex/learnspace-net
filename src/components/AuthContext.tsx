@@ -31,7 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [demoTimeRemaining, setDemoTimeRemaining] = useState<number | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
+  // Load saved auth state from localStorage or Supabase session
   useEffect(() => {
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session) {
@@ -42,15 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         fetchUserProfile(session.user);
       } else {
+        // Check for saved demo data
         const savedAuthData = localStorage.getItem(AUTH_STORAGE_KEY);
         if (savedAuthData) {
           try {
             const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
             if (parsedAuthData.isDemo) {
+              // Only restore demo data
               setAuth(parsedAuthData);
             }
           } catch (error) {
@@ -66,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Fetch user profile from Supabase
   const fetchUserProfile = async (user: User) => {
     try {
       const { data, error } = await supabase
@@ -80,39 +86,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data) {
-        let userData: UserData;
-        
-        if (data.role === 'student') {
-          userData = {
-            id: data.id,
-            role: 'student',
-            name: data.name,
-            phone: data.phone,
-            location: data.location,
+        const userData: UserData = {
+          role: data.role as UserRole,
+          name: data.name,
+          phone: data.phone,
+          location: data.location,
+          ...(data.role === 'student' ? {
             school: data.school || '',
             age: data.age || 16,
             grade: data.grade || '',
-          };
-        } else if (data.role === 'teacher') {
-          userData = {
-            id: data.id,
-            role: 'teacher',
-            name: data.name,
-            phone: data.phone,
-            location: data.location,
+          } : data.role === 'teacher' ? {
             teachingSchool: data.teaching_school || '',
             teachingGrades: data.teaching_grades ? data.teaching_grades.split(',') : [],
-          };
-        } else {
-          userData = {
-            id: data.id,
-            role: 'school',
-            name: data.name,
-            phone: data.phone,
-            location: data.location,
+          } : {
             ceoName: data.ceo_name || '',
-          };
-        }
+          }),
+        };
 
         setAuth({
           isAuthenticated: true,
@@ -124,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         toast.success(`Welcome back, ${userData.name}!`);
       } else {
+        // Create a basic profile if none exists
         createUserProfile(user);
       }
     } catch (error) {
@@ -131,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Create a basic user profile if none exists
   const createUserProfile = async (user: User) => {
     const email = user.email || '';
     const name = email.split('@')[0] || 'User';
@@ -178,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Handle demo timing
   useEffect(() => {
     if (!auth.isDemo || !auth.demoStartTime) return;
 
@@ -199,6 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (userData: UserData, rememberMe: boolean) => {
     try {
+      // For simplicity, we're using a password derived from the phone number
+      // In a real app, you would use a proper authentication flow
       const email = `${userData.name.toLowerCase().replace(/\s+/g, '.')}@eduhub.com`;
       const password = `${userData.phone.replace(/[^0-9]/g, '')}Pass123!`;
       
@@ -209,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
+          // If login fails, try to sign up the user
           const signUpResult = await supabase.auth.signUp({
             email,
             password,
@@ -227,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           data = signUpResult.data;
           
+          // Create the profile in the database
           const profileData = {
             id: data.user?.id,
             name: userData.name,
@@ -235,23 +231,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             location: userData.location,
             role: userData.role,
           };
-          
-          if (userData.role === 'student') {
-            Object.assign(profileData, {
-              school: (userData as any).school,
-              age: (userData as any).age,
-              grade: (userData as any).grade,
-            });
-          } else if (userData.role === 'teacher') {
-            Object.assign(profileData, {
-              teaching_school: (userData as any).teachingSchool,
-              teaching_grades: (userData as any).teachingGrades.join(','),
-            });
-          } else if (userData.role === 'school') {
-            Object.assign(profileData, {
-              ceo_name: (userData as any).ceoName,
-            });
-          }
           
           const { error: profileError } = await supabase
             .from('profiles')
@@ -266,12 +245,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // Set local auth state
       const newAuthState: AuthState = {
         isAuthenticated: true,
-        userData: {
-          ...userData,
-          id: data?.user?.id,
-        },
+        userData,
         isDemo: false,
         demoStartTime: null,
         rememberMe,
@@ -282,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (rememberMe) {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
       } else {
+        // Remove any previously saved data if remember me is off
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
       
@@ -318,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // If this is a demo user, just clear the state
     if (auth.isDemo) {
       setAuth(initialAuthState);
       setDemoTimeRemaining(null);
@@ -326,6 +305,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Otherwise, use Supabase logout
     try {
       await supabase.auth.signOut();
       setAuth(initialAuthState);

@@ -1,7 +1,41 @@
+
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  ThumbsUp, 
+  MessageCircle, 
+  Share2, 
+  BookOpen, 
+  Video, 
+  FileText,
+  MoreHorizontal,
+  RefreshCw,
+  Users,
+  TrendingUp,
+  Loader
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { Post } from '@/types/post';
+import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -299,77 +333,61 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
 };
 
 const HomePage: React.FC = () => {
+  const { auth } = useAuth();
+  const userRole = auth.userData?.role || 'student';
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const { auth } = useAuth();
-
+  const [activeTab, setActiveTab] = useState('all');
+  
   // Fetch posts from Supabase
   useEffect(() => {
     const fetchPosts = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        
+        let query = supabase
           .from('posts')
           .select('*')
           .order('created_at', { ascending: false });
-
+          
+        const { data, error } = await query;
+        
         if (error) {
           console.error('Error fetching posts:', error);
-          toast.error('Failed to load posts');
+          toast.error('Failed to load posts. Please try again.');
           return;
         }
-
-        // Convert the Supabase data to our Post type
-        const formattedPosts: Post[] = data.map(post => ({
-          id: post.id,
-          user_id: post.user_id,
-          content: post.content,
-          files: Array.isArray(post.files) ? post.files : [],
-          created_at: post.created_at,
-          updated_at: post.updated_at
-        }));
-
-        setPosts(formattedPosts);
+        
+        if (data) {
+          setPosts(data as Post[]);
+        }
       } catch (error) {
         console.error('Error in fetchPosts:', error);
-        toast.error('An unexpected error occurred');
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchPosts();
-
+    
     // Set up real-time subscription for new posts
     const postsSubscription = supabase
       .channel('public:posts')
       .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'posts' 
+        event: 'INSERT', 
+        schema: 'public',
+        table: 'posts'
       }, (payload) => {
-        console.log('Change received!', payload);
-        if (payload.eventType === 'INSERT') {
-          const newPost = payload.new as any;
-          setPosts(prevPosts => [{
-            id: newPost.id,
-            user_id: newPost.user_id,
-            content: newPost.content,
-            files: Array.isArray(newPost.files) ? newPost.files : [],
-            created_at: newPost.created_at,
-            updated_at: newPost.updated_at
-          }, ...prevPosts]);
-        } else if (payload.eventType === 'DELETE') {
-          setPosts(prevPosts => prevPosts.filter(post => post.id !== payload.old.id));
-        }
+        // Add new post to the top of the list
+        setPosts(current => [payload.new as Post, ...current]);
       })
       .subscribe();
-
+      
     return () => {
       supabase.removeChannel(postsSubscription);
     };
   }, []);
-
+  
   return (
     <div className="page-container pb-20">
       <DemoNotification />
