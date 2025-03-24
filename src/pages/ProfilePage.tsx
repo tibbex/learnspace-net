@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthContext';
-import { toast } from 'sonner';
+
+import React from 'react';
 import { 
   User, 
   Mail, 
@@ -27,24 +25,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/components/AuthContext';
+import DemoNotification from '@/components/DemoNotification';
 
-const ProfilePage = () => {
+const ProfilePage: React.FC = () => {
   const { auth } = useAuth();
-  const navigate = useNavigate();
+  const userRole = auth.userData?.role || 'student';
   
-  const [userRole, setUserRole] = useState(auth.userData?.role || 'student');
-  
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
-  }, [auth.isAuthenticated, navigate]);
-  
-  if (!auth.isAuthenticated) {
-    return null;
-  }
-  
+  // Display name based on role
   const getUserRoleDisplayName = () => {
     switch(userRole) {
       case 'student': return 'Student';
@@ -56,7 +44,10 @@ const ProfilePage = () => {
   
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <div className="flex flex-col lg:flex-row gap-8">
+        {/* Profile info */}
         <div className="w-full lg:w-1/3 space-y-6">
           <Card className="shadow-sm border-gray-100 overflow-hidden">
             <div className="h-32 bg-gradient-to-r from-eduBlue to-eduPurple" />
@@ -316,6 +307,7 @@ const ProfilePage = () => {
           )}
         </div>
         
+        {/* Activity and content */}
         <div className="w-full lg:w-2/3">
           <Tabs defaultValue="posts">
             <TabsList className="bg-transparent border p-1 mb-6">

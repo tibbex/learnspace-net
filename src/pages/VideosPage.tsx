@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthContext';
-import { toast } from 'sonner';
+
+import React from 'react';
 import { Video, Play, Clock, BookmarkPlus, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import DemoNotification from '@/components/DemoNotification';
 
+// Sample data for videos
 const videos = [
   {
     id: 1,
@@ -109,6 +109,7 @@ const videos = [
   }
 ];
 
+// Video card component
 const VideoCard: React.FC<{video: typeof videos[0]}> = ({ video }) => {
   return (
     <Card className="overflow-hidden border-gray-100 shadow-sm hover:shadow-md transition-shadow animate-fadeIn">
@@ -166,23 +167,11 @@ const VideoCard: React.FC<{video: typeof videos[0]}> = ({ video }) => {
   );
 };
 
-const VideosPage = () => {
-  const { auth } = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
-  }, [auth.isAuthenticated, navigate]);
-  
-  if (!auth.isAuthenticated) {
-    return null;
-  }
-  
+const VideosPage: React.FC = () => {
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Educational Videos</h1>
         <p className="text-muted-foreground">

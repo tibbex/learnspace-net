@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthState, UserData, UserRole } from '@/types/auth';
 import { toast } from 'sonner';
@@ -8,21 +7,28 @@ import { Session, User } from '@supabase/supabase-js';
 interface AuthContextType {
   auth: AuthState;
   login: (userData: UserData, rememberMe: boolean) => void;
+  startDemo: () => void;
   logout: () => void;
+  isDemo: boolean;
+  demoTimeRemaining: number | null;
 }
 
 const initialAuthState: AuthState = {
   isAuthenticated: false,
   userData: null,
+  isDemo: false,
+  demoStartTime: null,
   rememberMe: false,
 };
 
+const DEMO_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 const AUTH_STORAGE_KEY = 'eduhub-auth-data';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(initialAuthState);
+  const [demoTimeRemaining, setDemoTimeRemaining] = useState<number | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
@@ -30,21 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         if (session) {
           fetchUserProfile(session.user);
-        } else {
-          // Check if there's a saved auth state with rememberMe
-          const savedAuthData = localStorage.getItem(AUTH_STORAGE_KEY);
-          if (savedAuthData) {
-            try {
-              const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
-              setAuth(parsedAuthData);
-            } catch (error) {
-              console.error('Failed to parse saved auth data:', error);
-              localStorage.removeItem(AUTH_STORAGE_KEY);
-              setAuth(initialAuthState);
-            }
-          } else {
-            setAuth(initialAuthState);
-          }
+        } else if (!auth.isDemo) {
+          setAuth(initialAuthState);
         }
       }
     );
@@ -57,7 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedAuthData) {
           try {
             const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
-            setAuth(parsedAuthData);
+            if (parsedAuthData.isDemo) {
+              setAuth(parsedAuthData);
+            }
           } catch (error) {
             console.error('Failed to parse saved auth data:', error);
             localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -89,41 +84,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (data.role === 'student') {
           userData = {
-            role: 'student',
+            role: data.role as UserRole,
             name: data.name,
-            phone: data.phone || '',
-            location: data.location || '',
+            phone: data.phone,
+            location: data.location,
             school: data.school || '',
             age: data.age || 16,
             grade: data.grade || '',
           };
         } else if (data.role === 'teacher') {
           userData = {
-            role: 'teacher',
+            role: data.role as UserRole,
             name: data.name,
-            phone: data.phone || '',
-            location: data.location || '',
+            phone: data.phone,
+            location: data.location,
             teachingSchool: data.teaching_school || '',
             teachingGrades: data.teaching_grades ? data.teaching_grades.split(',') : [],
           };
         } else {
           userData = {
-            role: 'school',
+            role: 'school' as UserRole,
             name: data.name,
-            phone: data.phone || '',
-            location: data.location || '',
+            phone: data.phone,
+            location: data.location,
             ceoName: data.ceo_name || '',
           };
         }
 
-        const newAuthState: AuthState = {
+        setAuth({
           isAuthenticated: true,
           userData,
-          rememberMe: true, // Since we're getting from Supabase, we assume it was remembered
-        };
-        
-        setAuth(newAuthState);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+          isDemo: false,
+          demoStartTime: null,
+          rememberMe: true,
+        });
+
         toast.success(`Welcome back, ${userData.name}!`);
       } else {
         createUserProfile(user);
@@ -144,9 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       phone: '',
       location: '',
       role: 'student' as UserRole,
-      school: '',
-      age: 16,
-      grade: '',
     };
 
     try {
@@ -169,19 +161,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         grade: '',
       };
 
-      const newAuthState: AuthState = {
+      setAuth({
         isAuthenticated: true,
         userData,
+        isDemo: false,
+        demoStartTime: null,
         rememberMe: true,
-      };
-      
-      setAuth(newAuthState);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+      });
+
       toast.success(`Welcome, ${name}! Please complete your profile.`);
     } catch (error) {
       console.error('Error in createUserProfile:', error);
     }
   };
+
+  useEffect(() => {
+    if (!auth.isDemo || !auth.demoStartTime) return;
+
+    const intervalId = setInterval(() => {
+      const elapsedTime = Date.now() - auth.demoStartTime!;
+      const remaining = DEMO_DURATION - elapsedTime;
+      
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        logout();
+        toast.error('Your demo session has expired. Please sign up or log in.');
+      } else {
+        setDemoTimeRemaining(remaining);
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [auth.isDemo, auth.demoStartTime]);
 
   const login = async (userData: UserData, rememberMe: boolean) => {
     try {
@@ -213,8 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           data = signUpResult.data;
           
-          // Create additional profile data based on user role
-          let profileData: any = {
+          const profileData = {
             id: data.user?.id,
             name: userData.name,
             email,
@@ -223,20 +233,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: userData.role,
           };
           
-          // Add role-specific fields to profile
-          if (userData.role === 'student') {
-            profileData.school = (userData as any).school || '';
-            profileData.age = (userData as any).age || 16;
-            profileData.grade = (userData as any).grade || '';
-          } else if (userData.role === 'teacher') {
-            profileData.teaching_school = (userData as any).teachingSchool || '';
-            profileData.teaching_grades = Array.isArray((userData as any).teachingGrades) 
-              ? (userData as any).teachingGrades.join(',') 
-              : (userData as any).teachingGrades || '';
-          } else if (userData.role === 'school') {
-            profileData.ceo_name = (userData as any).ceoName || '';
-          }
-            
           const { error: profileError } = await supabase
             .from('profiles')
             .insert(profileData);
@@ -253,6 +249,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const newAuthState: AuthState = {
         isAuthenticated: true,
         userData,
+        isDemo: false,
+        demoStartTime: null,
         rememberMe,
       };
       
@@ -272,10 +270,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const startDemo = () => {
+    const demoStartTime = Date.now();
+    const demoData: AuthState = {
+      isAuthenticated: true,
+      userData: {
+        role: 'student',
+        name: 'Demo User',
+        phone: '555-123-4567',
+        location: 'Demo City',
+        school: 'Demo School',
+        age: 16,
+        grade: '10th',
+      },
+      isDemo: true,
+      demoStartTime,
+      rememberMe: false,
+    };
+    
+    setAuth(demoData);
+    setDemoTimeRemaining(DEMO_DURATION);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoData));
+    toast.info('You are using demo mode. You have 10 minutes to explore EduHub.');
+  };
+
   const logout = async () => {
+    if (auth.isDemo) {
+      setAuth(initialAuthState);
+      setDemoTimeRemaining(null);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      toast.info('You have been logged out of demo mode.');
+      return;
+    }
+
     try {
       await supabase.auth.signOut();
       setAuth(initialAuthState);
+      setDemoTimeRemaining(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
       toast.info('You have been logged out.');
     } catch (error) {
@@ -285,7 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ auth, login, logout }}>
+    <AuthContext.Provider value={{ auth, login, startDemo, logout, isDemo: auth.isDemo, demoTimeRemaining }}>
       {children}
     </AuthContext.Provider>
   );

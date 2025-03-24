@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   ThumbsUp, 
   MessageCircle, 
@@ -11,8 +11,7 @@ import {
   RefreshCw,
   Users,
   TrendingUp,
-  Loader,
-  Image,
+  Loader
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -33,10 +32,82 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthContext';
+import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Post, PostFile } from '@/types/auth';
+
+interface Post {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  files: {
+    type: 'document' | 'image' | 'video' | 'audio';
+    name: string;
+    size: string;
+    url: string;
+  }[];
+  profile?: {
+    name: string;
+    role: string;
+  };
+  likes?: number;
+  comments?: number;
+  shares?: number;
+}
+
+const suggestedConnections = [
+  {
+    id: 1,
+    name: 'Physics Club',
+    role: 'student',
+    initial: 'P',
+    mutual: 5
+  },
+  {
+    id: 2,
+    name: 'Ms. Williams',
+    role: 'teacher',
+    initial: 'W',
+    mutual: 3
+  },
+  {
+    id: 3,
+    name: 'Riverdale Academy',
+    role: 'school',
+    initial: 'R',
+    mutual: 12
+  }
+];
+
+const recommendedResources = [
+  {
+    id: 1,
+    title: 'Advanced Literature Study Guide',
+    type: 'document',
+    icon: FileText,
+    color: 'text-eduBlue',
+    bgColor: 'bg-eduBlue/10'
+  },
+  {
+    id: 2,
+    title: 'World History Video Series',
+    type: 'video',
+    icon: Video,
+    color: 'text-eduPurple',
+    bgColor: 'bg-eduPurple/10'
+  },
+  {
+    id: 3,
+    title: 'Algebra Fundamentals Workbook',
+    type: 'book',
+    icon: BookOpen,
+    color: 'text-eduGreen',
+    bgColor: 'bg-eduGreen/10'
+  }
+];
 
 const parsePostFiles = (filesJson: any): PostFile[] => {
   if (!filesJson) return [];
@@ -77,10 +148,7 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
         }
         
         if (data) {
-          setProfile({
-            name: data.name,
-            role: data.role
-          });
+          setProfile(data);
         }
       } catch (error) {
         console.error('Error in fetchProfile:', error);
@@ -125,6 +193,10 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
     : post.content;
     
   const userInitial = profile.name.charAt(0) || 'U';
+  
+  const likes = post.likes || Math.floor(Math.random() * 50) + 1;
+  const comments = post.comments || Math.floor(Math.random() * 20);
+  const shares = post.shares || Math.floor(Math.random() * 10);
   
   const hashtagRegex = /#\w+/g;
   const hashtags = post.content.match(hashtagRegex) || [];
@@ -243,15 +315,15 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
         <div className="flex items-center justify-between w-full">
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduBlue hover:bg-eduBlue/5">
             <ThumbsUp className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.likes || 0}</span>
+            <span className="text-xs">{likes}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduPurple hover:bg-eduPurple/5">
             <MessageCircle className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.comments || 0}</span>
+            <span className="text-xs">{comments}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduTeal hover:bg-eduTeal/5">
             <Share2 className="h-4 w-4 mr-1" />
-            <span className="text-xs">{post.shares || 0}</span>
+            <span className="text-xs">{shares}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduOrange hover:bg-eduOrange/5">
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -265,41 +337,23 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
 
 const HomePage: React.FC = () => {
   const { auth } = useAuth();
-  const navigate = useNavigate();
   const userRole = auth.userData?.role || 'student';
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   
-  const suggestedConnections: any[] = [];
-  
-  const recommendedResources: any[] = [];
-  
   useEffect(() => {
-    if (!auth.isAuthenticated) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
-  }, [auth.isAuthenticated, navigate]);
-  
-  useEffect(() => {
-    if (!auth.isAuthenticated) return;
-    
     const fetchPosts = async () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('posts')
-          .select(`
-            *,
-            profiles:user_id (
-              name,
-              role
-            )
-          `)
+          .select('*, profiles(name, role)')
           .order('created_at', { ascending: false });
           
+        const { data, error } = await query;
+        
         if (error) {
           console.error('Error fetching posts:', error);
           toast.error('Failed to load posts. Please try again.');
@@ -317,9 +371,9 @@ const HomePage: React.FC = () => {
               name: post.profiles.name,
               role: post.profiles.role
             } : undefined,
-            likes: 0,
-            comments: 0,
-            shares: 0
+            likes: Math.floor(Math.random() * 50) + 1,
+            comments: Math.floor(Math.random() * 20),
+            shares: Math.floor(Math.random() * 10)
           }));
           
           setPosts(transformedPosts);
@@ -347,14 +401,12 @@ const HomePage: React.FC = () => {
     return () => {
       supabase.removeChannel(postsSubscription);
     };
-  }, [auth.isAuthenticated]);
-  
-  if (!auth.isAuthenticated) {
-    return null;
-  }
+  }, []);
   
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="hidden lg:block lg:col-span-3">
           <div className="space-y-6 sticky top-20">
@@ -524,7 +576,7 @@ const HomePage: React.FC = () => {
                                 {post.content.substring(0, 30)}...
                               </h4>
                               <p className="text-xs text-gray-500">
-                                {post.comments || 0} engagements
+                                {Math.floor(Math.random() * 100) + 50} engagements
                               </p>
                             </div>
                           </div>
@@ -627,4 +679,3 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
-

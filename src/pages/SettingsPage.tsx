@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthContext';
-import { toast } from 'sonner';
+
+import React from 'react';
 import { 
   Settings, 
   User, 
@@ -20,21 +18,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/components/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import DemoNotification from '@/components/DemoNotification';
 
-const SettingsPage = () => {
-  const { auth } = useAuth();
+const SettingsPage: React.FC = () => {
+  const { auth, logout } = useAuth();
   const navigate = useNavigate();
-  
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
-  }, [auth.isAuthenticated, navigate]);
-  
-  if (!auth.isAuthenticated) {
-    return null;
-  }
   
   const handleLogout = () => {
     logout();
@@ -44,6 +35,8 @@ const SettingsPage = () => {
   
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted-foreground">

@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthContext';
-import { toast } from 'sonner';
+
+import React, { useState } from 'react';
 import { Search, Plus, Send, UserPlus, Pin, File, Image, PaperclipIcon, MoreHorizontal, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import DemoNotification from '@/components/DemoNotification';
 
 // Sample data for conversations
 const conversations = [
@@ -179,21 +178,7 @@ const messages = [
   }
 ];
 
-const MessagesPage = () => {
-  const { auth } = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
-  }, [auth.isAuthenticated, navigate]);
-  
-  if (!auth.isAuthenticated) {
-    return null;
-  }
-  
+const MessagesPage: React.FC = () => {
   const [selectedConversation, setSelectedConversation] = useState(conversations[0]);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -311,6 +296,8 @@ const MessagesPage = () => {
   
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <h1 className="text-3xl font-bold mb-6">Messages</h1>
       
       <Card className="shadow-sm border-gray-100 overflow-hidden">
