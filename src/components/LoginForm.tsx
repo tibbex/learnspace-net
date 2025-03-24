@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -44,6 +45,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
   const { login, startDemo } = useAuth();
   const navigate = useNavigate();
   
+  // Use different schemas based on the selected role
   const formSchema = 
     userRole === 'student' ? studentSchema :
     userRole === 'teacher' ? teacherSchema :
@@ -71,29 +73,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
     },
   });
 
+  // Handle form submission
   const onSubmit = (data: z.infer<typeof formSchema>) => {
+    // Transform the teachingGrades from string to array for teacher
     if (userRole === 'teacher') {
       const teacherData = {
         ...data,
-        role: 'teacher' as const,
-        teachingSchool: (data as any).teachingSchool || '',
+        role: userRole,
         teachingGrades: (data as any).teachingGrades.split(',').map((grade: string) => grade.trim()),
       };
       login(teacherData, data.rememberMe);
-    } else if (userRole === 'student') {
-      login({
-        ...data,
-        role: 'student' as const,
-        school: (data as any).school || '',
-        age: Number((data as any).age) || 0,
-        grade: (data as any).grade || '',
-      }, data.rememberMe);
     } else {
-      login({
-        ...data,
-        role: 'school' as const,
-        ceoName: (data as any).ceoName || '',
-      }, data.rememberMe);
+      login({ ...data, role: userRole }, data.rememberMe);
     }
     navigate('/home');
   };
@@ -103,6 +94,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
     navigate('/home');
   };
 
+  // Ensure form updates when role changes
   const handleRoleChange = (newRole: UserRole) => {
     setUserRole(newRole);
     form.reset({

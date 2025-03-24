@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search, Plus, Send, UserPlus, Pin, File, Image, PaperclipIcon, MoreHorizontal, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import DemoNotification from '@/components/DemoNotification';
 
+// Sample data for conversations
 const conversations = [
   {
     id: 1,
@@ -93,6 +95,7 @@ const conversations = [
   }
 ];
 
+// Sample messages for the selected conversation
 const messages = [
   {
     id: 1,
@@ -299,6 +302,7 @@ const MessagesPage: React.FC = () => {
       
       <Card className="shadow-sm border-gray-100 overflow-hidden">
         <div className="flex h-[calc(100vh-250px)] min-h-[500px]">
+          {/* Conversations sidebar */}
           <div className="w-full max-w-xs border-r border-gray-100">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
@@ -354,9 +358,11 @@ const MessagesPage: React.FC = () => {
             </ScrollArea>
           </div>
           
+          {/* Chat area */}
           <div className="flex-1 flex flex-col">
             {selectedConversation ? (
               <>
+                {/* Chat header */}
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center">
                     <Avatar className="h-10 w-10">
@@ -392,6 +398,7 @@ const MessagesPage: React.FC = () => {
                   </div>
                 </div>
                 
+                {/* Messages */}
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-1">
                     {messages.map(message => (
@@ -400,6 +407,7 @@ const MessagesPage: React.FC = () => {
                   </div>
                 </ScrollArea>
                 
+                {/* Message input */}
                 <div className="p-4 border-t border-gray-100">
                   <div className="flex items-center space-x-2">
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Attach file">

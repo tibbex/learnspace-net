@@ -1,27 +1,52 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { Card } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const DemoNotification: React.FC = () => {
   const { isDemo, demoTimeRemaining } = useAuth();
+  const [progress, setProgress] = useState(100);
+  const [isVisible, setIsVisible] = useState(true);
 
-  if (!isDemo || !demoTimeRemaining) return null;
+  useEffect(() => {
+    if (!isDemo || demoTimeRemaining === null) return;
+    
+    // Calculate progress percentage based on 10-minute duration
+    const totalDuration = 10 * 60 * 1000; // 10 minutes in milliseconds
+    const percentage = (demoTimeRemaining / totalDuration) * 100;
+    setProgress(percentage);
+  }, [isDemo, demoTimeRemaining]);
 
-  // Format the time remaining
-  const minutes = Math.floor(demoTimeRemaining / 60000);
-  const seconds = Math.floor((demoTimeRemaining % 60000) / 1000);
-  const formattedTime = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  if (!isDemo || !isVisible) return null;
+
+  const minutes = Math.floor((demoTimeRemaining || 0) / 60000);
+  const seconds = Math.floor(((demoTimeRemaining || 0) % 60000) / 1000);
+  const timeDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   return (
-    <Card className="mb-6 p-4 bg-amber-50 border-amber-200 text-amber-700 flex items-center gap-2">
-      <Clock className="h-5 w-5" />
-      <div>
-        <p className="font-medium">Demo Mode Active</p>
-        <p className="text-sm">Time remaining: {formattedTime}</p>
+    <div className="fixed top-20 right-4 z-50 w-64 glass-panel p-4 shadow-lg animate-fadeIn">
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center text-eduOrange">
+          <Clock className="h-4 w-4 mr-1.5" />
+          <h4 className="font-medium text-sm">Demo Mode</h4>
+        </div>
+        <button 
+          onClick={() => setIsVisible(false)} 
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
-    </Card>
+      <p className="text-xs text-gray-600 mb-3">
+        You're exploring EduHub in demo mode. Time remaining:
+      </p>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-medium">{timeDisplay}</span>
+        <span className="text-xs text-gray-500">{`${Math.round(progress)}%`}</span>
+      </div>
+      <Progress value={progress} className="h-1.5" />
+    </div>
   );
 };
 

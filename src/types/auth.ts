@@ -2,7 +2,6 @@
 export type UserRole = 'student' | 'teacher' | 'school';
 
 export interface BaseUserData {
-  id?: string; // Added id property
   name: string;
   phone: string;
   location: string;

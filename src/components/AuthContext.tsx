@@ -84,8 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (data.role === 'student') {
           userData = {
-            id: data.id,
-            role: 'student',
+            role: data.role as UserRole,
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -95,8 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         } else if (data.role === 'teacher') {
           userData = {
-            id: data.id,
-            role: 'teacher',
+            role: data.role as UserRole,
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -105,8 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         } else {
           userData = {
-            id: data.id,
-            role: 'school',
+            role: 'school' as UserRole,
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -155,7 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userData: UserData = {
-        id: user.id,
         role: 'student',
         name,
         phone: '',
@@ -252,10 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const newAuthState: AuthState = {
         isAuthenticated: true,
-        userData: {
-          ...userData, 
-          id: data?.user?.id
-        },
+        userData,
         isDemo: false,
         demoStartTime: null,
         rememberMe,
@@ -282,7 +275,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const demoData: AuthState = {
       isAuthenticated: true,
       userData: {
-        id: 'demo-user-id',
         role: 'student',
         name: 'Demo User',
         phone: '555-123-4567',
