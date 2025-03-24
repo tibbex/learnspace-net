@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from './AuthContext';
 import { UserRole } from '@/types/auth';
-import { ArrowRightCircle } from 'lucide-react';
+import { ArrowRightCircle, Clock } from 'lucide-react';
 
 const baseSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -42,7 +42,7 @@ type LoginFormProps = {
 
 const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
   const [userRole, setUserRole] = useState<UserRole>('student');
-  const { login } = useAuth();
+  const { login, startDemo } = useAuth();
   const navigate = useNavigate();
   
   // Use different schemas based on the selected role
@@ -78,36 +78,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
     // Transform the teachingGrades from string to array for teacher
     if (userRole === 'teacher') {
       const teacherData = {
-        role: 'teacher' as const,
-        name: data.name,
-        phone: data.phone,
-        location: data.location,
-        teachingSchool: (data as any).teachingSchool,
+        ...data,
+        role: userRole,
         teachingGrades: (data as any).teachingGrades.split(',').map((grade: string) => grade.trim()),
       };
       login(teacherData, data.rememberMe);
-    } else if (userRole === 'student') {
-      const studentData = {
-        role: 'student' as const,
-        name: data.name,
-        phone: data.phone, 
-        location: data.location,
-        school: (data as any).school,
-        age: Number((data as any).age),
-        grade: (data as any).grade,
-      };
-      login(studentData, data.rememberMe);
     } else {
-      const schoolData = {
-        role: 'school' as const,
-        name: data.name,
-        phone: data.phone,
-        location: data.location,
-        ceoName: (data as any).ceoName,
-      };
-      login(schoolData, data.rememberMe);
+      login({ ...data, role: userRole }, data.rememberMe);
     }
-    
+    navigate('/home');
+  };
+
+  const handleDemoMode = () => {
+    startDemo();
     navigate('/home');
   };
 
@@ -328,6 +311,26 @@ const LoginForm: React.FC<LoginFormProps> = ({ mode }) => {
             </div>
           </CardContent>
         </Tabs>
+        
+        <CardFooter className="flex flex-col">
+          <div className="relative w-full pt-2 pb-3">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-background px-2 text-xs text-muted-foreground">OR</span>
+            </div>
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={handleDemoMode}
+            className="w-full flex items-center justify-center space-x-2 border-eduTeal text-eduTeal hover:bg-eduTeal/10"
+          >
+            <Clock className="h-4 w-4" />
+            <span>Try Demo Mode (10 minutes)</span>
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );

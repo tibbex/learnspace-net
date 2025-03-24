@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -35,9 +34,29 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthContext';
+import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Post } from '@/types/auth';
+
+interface Post {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  files: {
+    type: 'document' | 'image' | 'video' | 'audio';
+    name: string;
+    size: string;
+    url: string;
+  }[];
+  profile?: {
+    name: string;
+    role: string;
+  };
+  likes?: number;
+  comments?: number;
+  shares?: number;
+}
 
 const suggestedConnections = [
   {
@@ -90,7 +109,7 @@ const recommendedResources = [
   }
 ];
 
-const parsePostFiles = (filesJson: any): Post['files'] => {
+const parsePostFiles = (filesJson: any): PostFile[] => {
   if (!filesJson) return [];
   try {
     if (typeof filesJson === 'string') {
@@ -328,20 +347,12 @@ const HomePage: React.FC = () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('posts')
-          .select(`
-            id,
-            content,
-            created_at,
-            user_id,
-            files,
-            profiles:user_id (
-              name,
-              role
-            )
-          `)
+          .select('*, profiles(name, role)')
           .order('created_at', { ascending: false });
+          
+        const { data, error } = await query;
         
         if (error) {
           console.error('Error fetching posts:', error);
@@ -394,6 +405,8 @@ const HomePage: React.FC = () => {
   
   return (
     <div className="page-container pb-20">
+      <DemoNotification />
+      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="hidden lg:block lg:col-span-3">
           <div className="space-y-6 sticky top-20">

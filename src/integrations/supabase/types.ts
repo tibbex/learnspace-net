@@ -38,49 +38,31 @@ export type Database = {
       }
       profiles: {
         Row: {
-          age: number | null
-          ceo_name: string | null
           created_at: string | null
           email: string
-          grade: string | null
           id: string
           location: string
           name: string
           phone: string
           role: string
-          school: string | null
-          teaching_grades: string | null
-          teaching_school: string | null
         }
         Insert: {
-          age?: number | null
-          ceo_name?: string | null
           created_at?: string | null
           email: string
-          grade?: string | null
           id: string
           location: string
           name: string
           phone: string
           role: string
-          school?: string | null
-          teaching_grades?: string | null
-          teaching_school?: string | null
         }
         Update: {
-          age?: number | null
-          ceo_name?: string | null
           created_at?: string | null
           email?: string
-          grade?: string | null
           id?: string
           location?: string
           name?: string
           phone?: string
           role?: string
-          school?: string | null
-          teaching_grades?: string | null
-          teaching_school?: string | null
         }
         Relationships: []
       }
