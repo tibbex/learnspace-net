@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -72,8 +71,6 @@ const CreatePost: React.FC = () => {
   };
   
   const addAttachment = (type: AttachmentType) => {
-    // In a real implementation, we'd use a file input
-    // For now, we simulate file selection
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = type === 'document' ? '.pdf,.doc,.docx,.txt' : 
@@ -129,7 +126,6 @@ const CreatePost: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      // First, handle any file uploads
       const filesData = [];
       
       for (const attachment of attachments) {
@@ -148,7 +144,6 @@ const CreatePost: React.FC = () => {
             return;
           }
           
-          // Get public URL for the file
           const { data: publicUrlData } = supabase.storage
             .from('posts')
             .getPublicUrl(filePath);
@@ -162,13 +157,12 @@ const CreatePost: React.FC = () => {
         }
       }
       
-      // Create the post in Supabase
       const { error: postError } = await supabase
         .from('posts')
         .insert({
           content,
           files: filesData,
-          user_id: auth.userData?.id, // This should be the actual user ID from Supabase
+          user_id: auth.userData?.id || '',
           // We would ideally store privacy settings as well
         });
         
@@ -198,7 +192,6 @@ const CreatePost: React.FC = () => {
     }
   };
   
-  // Prevent UI glitches with stable UI elements
   return (
     <div className="page-container pb-20">
       <DemoNotification />

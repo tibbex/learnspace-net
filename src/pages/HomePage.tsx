@@ -327,7 +327,7 @@ const HomePage: React.FC = () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
+        const { data: posts, error: postsError } = await supabase
           .from('posts')
           .select(`
             *,
@@ -335,8 +335,8 @@ const HomePage: React.FC = () => {
           `)
           .order('created_at', { ascending: false });
         
-        if (error) {
-          console.error('Error fetching posts:', error);
+        if (postsError) {
+          console.error('Error fetching posts:', postsError);
           toast.error('Failed to load posts. Please try again.');
           return;
         }
@@ -386,7 +386,7 @@ const HomePage: React.FC = () => {
   
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
+      {/* DemoNotification component is temporarily disabled */}
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="hidden lg:block lg:col-span-3">
@@ -660,3 +660,4 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+
