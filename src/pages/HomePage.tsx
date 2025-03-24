@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -39,7 +38,6 @@ import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Interface for posts from the database
 interface Post {
   id: string;
   content: string;
@@ -60,7 +58,6 @@ interface Post {
   shares?: number;
 }
 
-// Sample data for suggested connections
 const suggestedConnections = [
   {
     id: 1,
@@ -85,7 +82,6 @@ const suggestedConnections = [
   }
 ];
 
-// Sample recommended resources
 const recommendedResources = [
   {
     id: 1,
@@ -113,12 +109,25 @@ const recommendedResources = [
   }
 ];
 
-// Post Item component
+const parsePostFiles = (filesJson: any): PostFile[] => {
+  if (!filesJson) return [];
+  try {
+    if (typeof filesJson === 'string') {
+      return JSON.parse(filesJson);
+    } else if (Array.isArray(filesJson)) {
+      return filesJson;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error parsing files JSON:', error);
+    return [];
+  }
+};
+
 const PostItem: React.FC<{post: Post}> = ({ post }) => {
   const [showFullContent, setShowFullContent] = useState(false);
   const [profile, setProfile] = useState<{name: string, role: string} | null>(null);
   
-  // Fetch the user profile if not already included
   useEffect(() => {
     const fetchProfile = async () => {
       if (post.profile) {
@@ -159,7 +168,6 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
     );
   }
   
-  // Format created_at date
   const timeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -180,24 +188,19 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
     }
   };
   
-  // Truncate content if it's too long
   const contentPreview = post.content.length > 300 && !showFullContent
     ? post.content.substring(0, 300) + '...'
     : post.content;
     
-  // Get the first letter of the user's name as initial
   const userInitial = profile.name.charAt(0) || 'U';
   
-  // Set placeholder engagement metrics
   const likes = post.likes || Math.floor(Math.random() * 50) + 1;
   const comments = post.comments || Math.floor(Math.random() * 20);
   const shares = post.shares || Math.floor(Math.random() * 10);
   
-  // Find any hashtags in the content
   const hashtagRegex = /#\w+/g;
   const hashtags = post.content.match(hashtagRegex) || [];
   
-  // Extract media from files
   const media = post.files && post.files.length > 0 ? post.files[0] : null;
   
   return (
@@ -207,8 +210,8 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
           <Avatar>
             <AvatarImage src="" />
             <AvatarFallback className={`
-              ${profile.role === 'teacher' ? 'bg-eduPurple' : 
-                profile.role === 'student' ? 'bg-eduBlue' : 'bg-eduTeal'} 
+              ${profile?.role === 'teacher' ? 'bg-eduPurple' : 
+                profile?.role === 'student' ? 'bg-eduBlue' : 'bg-eduTeal'} 
               text-white
             `}>
               {userInitial}
@@ -216,9 +219,9 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-medium">{profile.name}</CardTitle>
+              <CardTitle className="text-base font-medium">{profile?.name}</CardTitle>
               <Badge variant="outline" className="text-xs capitalize">
-                {profile.role}
+                {profile?.role}
               </Badge>
             </div>
             <CardDescription className="text-xs">{timeAgo(post.created_at)}</CardDescription>
@@ -339,7 +342,6 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   
-  // Fetch posts from Supabase
   useEffect(() => {
     const fetchPosts = async () => {
       try {
@@ -347,7 +349,7 @@ const HomePage: React.FC = () => {
         
         let query = supabase
           .from('posts')
-          .select('*')
+          .select('*, profiles(name, role)')
           .order('created_at', { ascending: false });
           
         const { data, error } = await query;
@@ -359,7 +361,22 @@ const HomePage: React.FC = () => {
         }
         
         if (data) {
-          setPosts(data as Post[]);
+          const transformedPosts: Post[] = data.map(post => ({
+            id: post.id,
+            content: post.content,
+            created_at: post.created_at,
+            user_id: post.user_id,
+            files: parsePostFiles(post.files),
+            profile: post.profiles ? {
+              name: post.profiles.name,
+              role: post.profiles.role
+            } : undefined,
+            likes: Math.floor(Math.random() * 50) + 1,
+            comments: Math.floor(Math.random() * 20),
+            shares: Math.floor(Math.random() * 10)
+          }));
+          
+          setPosts(transformedPosts);
         }
       } catch (error) {
         console.error('Error in fetchPosts:', error);
@@ -370,7 +387,6 @@ const HomePage: React.FC = () => {
     
     fetchPosts();
     
-    // Set up real-time subscription for new posts
     const postsSubscription = supabase
       .channel('public:posts')
       .on('postgres_changes', { 
@@ -378,7 +394,6 @@ const HomePage: React.FC = () => {
         schema: 'public',
         table: 'posts'
       }, (payload) => {
-        // Add new post to the top of the list
         setPosts(current => [payload.new as Post, ...current]);
       })
       .subscribe();
@@ -393,7 +408,6 @@ const HomePage: React.FC = () => {
       <DemoNotification />
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left sidebar */}
         <div className="hidden lg:block lg:col-span-3">
           <div className="space-y-6 sticky top-20">
             <Card className="shadow-sm border-gray-100">
@@ -463,7 +477,6 @@ const HomePage: React.FC = () => {
           </div>
         </div>
         
-        {/* Main content */}
         <div className="lg:col-span-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between mb-4">
@@ -591,7 +604,6 @@ const HomePage: React.FC = () => {
           </Tabs>
         </div>
         
-        {/* Right sidebar */}
         <div className="hidden lg:block lg:col-span-3">
           <div className="space-y-6 sticky top-20">
             <Card className="shadow-sm border-gray-100">
