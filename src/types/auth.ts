@@ -34,26 +34,3 @@ export interface AuthState {
   demoStartTime: number | null;
   rememberMe: boolean;
 }
-
-// Post-related types
-export interface PostFile {
-  type: 'document' | 'image' | 'video' | 'audio';
-  name: string;
-  size: string;
-  url: string;
-}
-
-export interface Post {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  files: PostFile[];
-  profile?: {
-    name: string;
-    role: string;
-  };
-  likes?: number;
-  comments?: number;
-  shares?: number;
-}

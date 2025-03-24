@@ -27,7 +27,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/AuthContext';
 import { toast } from 'sonner';
 import DemoNotification from '@/components/DemoNotification';
-import { supabase } from '@/integrations/supabase/client';
 
 type AttachmentType = 'document' | 'image' | 'video' | 'audio';
 
@@ -37,7 +36,6 @@ interface Attachment {
   name: string;
   size: string;
   preview?: string;
-  file?: File;
 }
 
 const CreatePost: React.FC = () => {
@@ -72,121 +70,39 @@ const CreatePost: React.FC = () => {
   };
   
   const addAttachment = (type: AttachmentType) => {
-    // In a real implementation, we'd use a file input
-    // For now, we simulate file selection
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = type === 'document' ? '.pdf,.doc,.docx,.txt' : 
-                      type === 'image' ? '.jpg,.jpeg,.png,.gif' : 
-                      type === 'video' ? '.mp4,.mov,.avi' : '.mp3,.wav';
-    
-    fileInput.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files;
-      if (files && files.length > 0) {
-        const file = files[0];
-        const newAttachment: Attachment = {
-          id: Date.now(),
-          type,
-          name: file.name,
-          size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-          file,
-          preview: type === 'image' ? URL.createObjectURL(file) : undefined
-        };
-        
-        setAttachments([...attachments, newAttachment]);
-      }
+    // In a real app, this would open a file picker
+    // For demo purposes, we'll add a dummy attachment
+    const newAttachment: Attachment = {
+      id: Date.now(),
+      type,
+      name: type === 'document' ? 'Document.pdf' : 
+           type === 'image' ? 'Image.jpg' : 
+           type === 'video' ? 'Video.mp4' : 'Audio.mp3',
+      size: '2.4 MB',
+      preview: type === 'image' ? 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' : undefined
     };
     
-    fileInput.click();
+    setAttachments([...attachments, newAttachment]);
   };
   
   const removeAttachment = (id: number) => {
-    const attachmentToRemove = attachments.find(a => a.id === id);
-    if (attachmentToRemove?.preview) {
-      URL.revokeObjectURL(attachmentToRemove.preview);
-    }
     setAttachments(attachments.filter(attachment => attachment.id !== id));
   };
   
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!content.trim() && attachments.length === 0) {
       toast.error('Please add some content or attachments to your post.');
       return;
     }
     
-    if (!auth.isAuthenticated) {
-      toast.error('You must be logged in to create a post.');
-      navigate('/login');
-      return;
-    }
-    
-    if (auth.isDemo) {
-      toast.info('Demo users cannot create real posts. Please sign up to post.');
-      navigate('/login');
-      return;
-    }
-    
     setIsSubmitting(true);
     
-    try {
-      // First, handle any file uploads
-      const filesData = [];
-      
-      for (const attachment of attachments) {
-        if (attachment.file) {
-          const fileName = `${Date.now()}-${attachment.name}`;
-          const filePath = `posts/${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('posts')
-            .upload(filePath, attachment.file);
-            
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            toast.error(`Error uploading ${attachment.name}`);
-            setIsSubmitting(false);
-            return;
-          }
-          
-          // Get public URL for the file
-          const { data: publicUrlData } = supabase.storage
-            .from('posts')
-            .getPublicUrl(filePath);
-            
-          filesData.push({
-            type: attachment.type,
-            name: attachment.name,
-            size: attachment.size,
-            url: publicUrlData.publicUrl,
-          });
-        }
-      }
-      
-      // Create the post in Supabase
-      const { error: postError } = await supabase
-        .from('posts')
-        .insert({
-          content,
-          files: filesData,
-          user_id: auth.userData?.id, // This should be the actual user ID from Supabase
-          // We would ideally store privacy settings as well
-        });
-        
-      if (postError) {
-        console.error('Error creating post:', postError);
-        toast.error('Error creating your post. Please try again.');
-        setIsSubmitting(false);
-        return;
-      }
-      
+    // Simulate post creation
+    setTimeout(() => {
       toast.success('Your post has been published!');
-      navigate('/home');
-    } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      toast.error('An unexpected error occurred. Please try again.');
-    } finally {
       setIsSubmitting(false);
-    }
+      navigate('/home');
+    }, 1000);
   };
   
   const renderAttachmentIcon = (type: AttachmentType) => {
@@ -198,7 +114,6 @@ const CreatePost: React.FC = () => {
     }
   };
   
-  // Prevent UI glitches with stable UI elements
   return (
     <div className="page-container pb-20">
       <DemoNotification />
