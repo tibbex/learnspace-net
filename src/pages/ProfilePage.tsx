@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/components/AuthContext';
+import { toast } from 'sonner';
 import { 
   User, 
   Mail, 
@@ -24,11 +27,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/components/AuthContext';
 
-const ProfilePage: React.FC = () => {
+const ProfilePage = () => {
   const { auth } = useAuth();
-  const userRole = auth.userData?.role || 'student';
+  const navigate = useNavigate();
+  
+  const [userRole, setUserRole] = useState(auth.userData?.role || 'student');
+  
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      toast.error('Please log in to access this page');
+      navigate('/login');
+    }
+  }, [auth.isAuthenticated, navigate]);
+  
+  if (!auth.isAuthenticated) {
+    return null;
+  }
   
   const getUserRoleDisplayName = () => {
     switch(userRole) {

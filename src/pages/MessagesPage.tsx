@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/components/AuthContext';
+import { toast } from 'sonner';
 import { Search, Plus, Send, UserPlus, Pin, File, Image, PaperclipIcon, MoreHorizontal, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -176,7 +179,21 @@ const messages = [
   }
 ];
 
-const MessagesPage: React.FC = () => {
+const MessagesPage = () => {
+  const { auth } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      toast.error('Please log in to access this page');
+      navigate('/login');
+    }
+  }, [auth.isAuthenticated, navigate]);
+  
+  if (!auth.isAuthenticated) {
+    return null;
+  }
+  
   const [selectedConversation, setSelectedConversation] = useState(conversations[0]);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');

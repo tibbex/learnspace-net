@@ -38,57 +38,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Post, PostFile } from '@/types/auth';
 
-const suggestedConnections = [
-  {
-    id: 1,
-    name: 'Physics Club',
-    role: 'student',
-    initial: 'P',
-    mutual: 5
-  },
-  {
-    id: 2,
-    name: 'Ms. Williams',
-    role: 'teacher',
-    initial: 'W',
-    mutual: 3
-  },
-  {
-    id: 3,
-    name: 'Riverdale Academy',
-    role: 'school',
-    initial: 'R',
-    mutual: 12
-  }
-];
-
-const recommendedResources = [
-  {
-    id: 1,
-    title: 'Advanced Literature Study Guide',
-    type: 'document',
-    icon: FileText,
-    color: 'text-eduBlue',
-    bgColor: 'bg-eduBlue/10'
-  },
-  {
-    id: 2,
-    title: 'World History Video Series',
-    type: 'video',
-    icon: Video,
-    color: 'text-eduPurple',
-    bgColor: 'bg-eduPurple/10'
-  },
-  {
-    id: 3,
-    title: 'Algebra Fundamentals Workbook',
-    type: 'book',
-    icon: BookOpen,
-    color: 'text-eduGreen',
-    bgColor: 'bg-eduGreen/10'
-  }
-];
-
 const parsePostFiles = (filesJson: any): PostFile[] => {
   if (!filesJson) return [];
   try {
@@ -266,7 +215,7 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
               <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="h-10 w-10 rounded-lg bg-eduBlue/10 flex items-center justify-center mr-3">
                   {media.type === 'document' ? (
-                    <FileTextIcon className="h-5 w-5 text-eduBlue" />
+                    <FileText className="h-5 w-5 text-eduBlue" />
                   ) : (
                     <BookOpen className="h-5 w-5 text-eduTeal" />
                   )}
@@ -321,7 +270,11 @@ const HomePage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-
+  
+  const suggestedConnections: any[] = [];
+  
+  const recommendedResources: any[] = [];
+  
   useEffect(() => {
     if (!auth.isAuthenticated) {
       toast.error('Please log in to access this page');
@@ -336,13 +289,17 @@ const HomePage: React.FC = () => {
       try {
         setLoading(true);
         
-        let query = supabase
+        const { data, error } = await supabase
           .from('posts')
-          .select('*, profiles(name, role)')
+          .select(`
+            *,
+            profiles:user_id (
+              name,
+              role
+            )
+          `)
           .order('created_at', { ascending: false });
           
-        const { data, error } = await query;
-        
         if (error) {
           console.error('Error fetching posts:', error);
           toast.error('Failed to load posts. Please try again.');
@@ -670,3 +627,4 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+

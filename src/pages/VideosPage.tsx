@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/components/AuthContext';
+import { toast } from 'sonner';
 import { Video, Play, Clock, BookmarkPlus, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-// Sample data for videos
 const videos = [
   {
     id: 1,
@@ -107,7 +109,6 @@ const videos = [
   }
 ];
 
-// Video card component
 const VideoCard: React.FC<{video: typeof videos[0]}> = ({ video }) => {
   return (
     <Card className="overflow-hidden border-gray-100 shadow-sm hover:shadow-md transition-shadow animate-fadeIn">
@@ -165,7 +166,21 @@ const VideoCard: React.FC<{video: typeof videos[0]}> = ({ video }) => {
   );
 };
 
-const VideosPage: React.FC = () => {
+const VideosPage = () => {
+  const { auth } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      toast.error('Please log in to access this page');
+      navigate('/login');
+    }
+  }, [auth.isAuthenticated, navigate]);
+  
+  if (!auth.isAuthenticated) {
+    return null;
+  }
+  
   return (
     <div className="page-container pb-20">
       <div className="mb-8">
