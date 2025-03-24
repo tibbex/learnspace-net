@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Video, Play, Clock, BookmarkPlus, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import DemoNotification from '@/components/DemoNotification';
 
 // Sample data for videos
 const videos = [
@@ -170,8 +168,6 @@ const VideoCard: React.FC<{video: typeof videos[0]}> = ({ video }) => {
 const VideosPage: React.FC = () => {
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Educational Videos</h1>
         <p className="text-muted-foreground">

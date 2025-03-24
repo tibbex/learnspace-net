@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Settings, 
@@ -21,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/components/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import DemoNotification from '@/components/DemoNotification';
 
 const SettingsPage: React.FC = () => {
   const { auth, logout } = useAuth();
@@ -35,8 +33,6 @@ const SettingsPage: React.FC = () => {
   
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted-foreground">

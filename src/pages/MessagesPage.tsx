@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, Plus, Send, UserPlus, Pin, File, Image, PaperclipIcon, MoreHorizontal, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -9,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import DemoNotification from '@/components/DemoNotification';
 
 // Sample data for conversations
 const conversations = [
@@ -296,8 +294,6 @@ const MessagesPage: React.FC = () => {
   
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <h1 className="text-3xl font-bold mb-6">Messages</h1>
       
       <Card className="shadow-sm border-gray-100 overflow-hidden">

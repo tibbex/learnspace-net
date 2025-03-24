@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -7,14 +6,13 @@ import {
   Share2, 
   BookOpen, 
   Video, 
-  FileText as FileTextIcon,
+  FileText,
   MoreHorizontal,
   RefreshCw,
   Users,
   TrendingUp,
   Loader,
   Image,
-  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -130,7 +128,10 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
         }
         
         if (data) {
-          setProfile(data);
+          setProfile({
+            name: data.name,
+            role: data.role
+          });
         }
       } catch (error) {
         console.error('Error in fetchProfile:', error);
@@ -321,7 +322,6 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!auth.isAuthenticated) {
       toast.error('Please log in to access this page');

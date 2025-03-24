@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Book, 
   FileText, 
@@ -30,7 +29,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import DemoNotification from '@/components/DemoNotification';
 
 // Sample data for resources
 const resources = [
@@ -243,8 +241,6 @@ const ResourcesPage: React.FC = () => {
   
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Books & Worksheets</h1>
         <p className="text-muted-foreground">
@@ -253,7 +249,6 @@ const ResourcesPage: React.FC = () => {
       </div>
       
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Left sidebar for categories on larger screens */}
         <div className="hidden md:block w-56 space-y-6">
           <Card className="shadow-sm border-gray-100">
             <CardHeader className="pb-2">
@@ -318,7 +313,6 @@ const ResourcesPage: React.FC = () => {
           </Card>
         </div>
         
-        {/* Main content */}
         <div className="flex-1">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div className="relative w-full sm:w-64">
