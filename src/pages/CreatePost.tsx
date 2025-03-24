@@ -26,7 +26,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/AuthContext';
 import { toast } from 'sonner';
-import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 
 type AttachmentType = 'document' | 'image' | 'video' | 'audio';
@@ -120,15 +119,19 @@ const CreatePost: React.FC = () => {
       return;
     }
     
-    if (auth.isDemo) {
-      toast.info('Demo users cannot create real posts. Please sign up to post.');
-      navigate('/login');
-      return;
-    }
-    
     setIsSubmitting(true);
     
     try {
+      // Get the current user ID from the session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to create a post.');
+        navigate('/login');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
       // First, handle any file uploads
       const filesData = [];
       
@@ -168,8 +171,7 @@ const CreatePost: React.FC = () => {
         .insert({
           content,
           files: filesData,
-          user_id: auth.userData?.id, // This should be the actual user ID from Supabase
-          // We would ideally store privacy settings as well
+          user_id: userId, // Use session user ID
         });
         
       if (postError) {
@@ -201,8 +203,6 @@ const CreatePost: React.FC = () => {
   // Prevent UI glitches with stable UI elements
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Create a Post</h1>
         <p className="text-muted-foreground">

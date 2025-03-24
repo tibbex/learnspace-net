@@ -30,8 +30,6 @@ export type UserData = StudentData | TeacherData | SchoolData;
 export interface AuthState {
   isAuthenticated: boolean;
   userData: UserData | null;
-  isDemo: boolean;
-  demoStartTime: number | null;
   rememberMe: boolean;
 }
 

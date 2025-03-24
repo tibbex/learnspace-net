@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthState, UserData, UserRole } from '@/types/auth';
 import { toast } from 'sonner';
@@ -7,28 +8,21 @@ import { Session, User } from '@supabase/supabase-js';
 interface AuthContextType {
   auth: AuthState;
   login: (userData: UserData, rememberMe: boolean) => void;
-  startDemo: () => void;
   logout: () => void;
-  isDemo: boolean;
-  demoTimeRemaining: number | null;
 }
 
 const initialAuthState: AuthState = {
   isAuthenticated: false,
   userData: null,
-  isDemo: false,
-  demoStartTime: null,
   rememberMe: false,
 };
 
-const DEMO_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 const AUTH_STORAGE_KEY = 'eduhub-auth-data';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(initialAuthState);
-  const [demoTimeRemaining, setDemoTimeRemaining] = useState<number | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
@@ -36,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         if (session) {
           fetchUserProfile(session.user);
-        } else if (!auth.isDemo) {
+        } else {
           setAuth(initialAuthState);
         }
       }
@@ -50,9 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedAuthData) {
           try {
             const parsedAuthData = JSON.parse(savedAuthData) as AuthState;
-            if (parsedAuthData.isDemo) {
-              setAuth(parsedAuthData);
-            }
+            setAuth(parsedAuthData);
           } catch (error) {
             console.error('Failed to parse saved auth data:', error);
             localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -84,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (data.role === 'student') {
           userData = {
-            role: data.role as UserRole,
+            role: 'student',
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -94,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         } else if (data.role === 'teacher') {
           userData = {
-            role: data.role as UserRole,
+            role: 'teacher',
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -103,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         } else {
           userData = {
-            role: 'school' as UserRole,
+            role: 'school',
             name: data.name,
             phone: data.phone,
             location: data.location,
@@ -114,8 +106,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuth({
           isAuthenticated: true,
           userData,
-          isDemo: false,
-          demoStartTime: null,
           rememberMe: true,
         });
 
@@ -164,8 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuth({
         isAuthenticated: true,
         userData,
-        isDemo: false,
-        demoStartTime: null,
         rememberMe: true,
       });
 
@@ -174,25 +162,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error in createUserProfile:', error);
     }
   };
-
-  useEffect(() => {
-    if (!auth.isDemo || !auth.demoStartTime) return;
-
-    const intervalId = setInterval(() => {
-      const elapsedTime = Date.now() - auth.demoStartTime!;
-      const remaining = DEMO_DURATION - elapsedTime;
-      
-      if (remaining <= 0) {
-        clearInterval(intervalId);
-        logout();
-        toast.error('Your demo session has expired. Please sign up or log in.');
-      } else {
-        setDemoTimeRemaining(remaining);
-      }
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [auth.isDemo, auth.demoStartTime]);
 
   const login = async (userData: UserData, rememberMe: boolean) => {
     try {
@@ -249,8 +218,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const newAuthState: AuthState = {
         isAuthenticated: true,
         userData,
-        isDemo: false,
-        demoStartTime: null,
         rememberMe,
       };
       
@@ -270,43 +237,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const startDemo = () => {
-    const demoStartTime = Date.now();
-    const demoData: AuthState = {
-      isAuthenticated: true,
-      userData: {
-        role: 'student',
-        name: 'Demo User',
-        phone: '555-123-4567',
-        location: 'Demo City',
-        school: 'Demo School',
-        age: 16,
-        grade: '10th',
-      },
-      isDemo: true,
-      demoStartTime,
-      rememberMe: false,
-    };
-    
-    setAuth(demoData);
-    setDemoTimeRemaining(DEMO_DURATION);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoData));
-    toast.info('You are using demo mode. You have 10 minutes to explore EduHub.');
-  };
-
   const logout = async () => {
-    if (auth.isDemo) {
-      setAuth(initialAuthState);
-      setDemoTimeRemaining(null);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      toast.info('You have been logged out of demo mode.');
-      return;
-    }
-
     try {
       await supabase.auth.signOut();
       setAuth(initialAuthState);
-      setDemoTimeRemaining(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
       toast.info('You have been logged out.');
     } catch (error) {
@@ -316,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ auth, login, startDemo, logout, isDemo: auth.isDemo, demoTimeRemaining }}>
+    <AuthContext.Provider value={{ auth, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
