@@ -26,7 +26,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/AuthContext';
 import { toast } from 'sonner';
-import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 
 type AttachmentType = 'document' | 'image' | 'video' | 'audio';
@@ -47,6 +46,14 @@ const CreatePost: React.FC = () => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [privacy, setPrivacy] = useState<'public' | 'connections' | 'private'>('public');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (!auth.isAuthenticated) {
+      toast.error('You must be logged in to create a post.');
+      navigate('/login');
+    }
+  }, [auth.isAuthenticated, navigate]);
   
   const userInitial = auth.userData?.name.charAt(0) || 'U';
   const userRole = auth.userData?.role || 'student';
@@ -120,12 +127,6 @@ const CreatePost: React.FC = () => {
       return;
     }
     
-    if (auth.isDemo) {
-      toast.info('Demo users cannot create real posts. Please sign up to post.');
-      navigate('/login');
-      return;
-    }
-    
     setIsSubmitting(true);
     
     try {
@@ -162,14 +163,23 @@ const CreatePost: React.FC = () => {
         }
       }
       
+      // Get the user ID from auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (!userId) {
+        toast.error('Authentication error. Please login again.');
+        navigate('/login');
+        return;
+      }
+      
       // Create the post in Supabase
       const { error: postError } = await supabase
         .from('posts')
         .insert({
           content,
           files: filesData,
-          user_id: auth.userData?.id, // This should be the actual user ID from Supabase
-          // We would ideally store privacy settings as well
+          user_id: userId,
         });
         
       if (postError) {
@@ -198,11 +208,13 @@ const CreatePost: React.FC = () => {
     }
   };
   
+  if (!auth.isAuthenticated) {
+    return null;
+  }
+  
   // Prevent UI glitches with stable UI elements
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Create a Post</h1>
         <p className="text-muted-foreground">

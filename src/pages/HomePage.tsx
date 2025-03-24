@@ -1,17 +1,20 @@
+
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   ThumbsUp, 
   MessageCircle, 
   Share2, 
   BookOpen, 
   Video, 
-  FileText,
+  FileText as FileTextIcon,
   MoreHorizontal,
   RefreshCw,
   Users,
   TrendingUp,
-  Loader
+  Loader,
+  Image,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -32,31 +35,10 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthContext';
-import DemoNotification from '@/components/DemoNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface Post {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  files: {
-    type: 'document' | 'image' | 'video' | 'audio';
-    name: string;
-    size: string;
-    url: string;
-  }[];
-  profile?: {
-    name: string;
-    role: string;
-  };
-  likes?: number;
-  comments?: number;
-  shares?: number;
-}
+import { Post, PostFile } from '@/types/auth';
 
 const suggestedConnections = [
   {
@@ -194,10 +176,6 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
     
   const userInitial = profile.name.charAt(0) || 'U';
   
-  const likes = post.likes || Math.floor(Math.random() * 50) + 1;
-  const comments = post.comments || Math.floor(Math.random() * 20);
-  const shares = post.shares || Math.floor(Math.random() * 10);
-  
   const hashtagRegex = /#\w+/g;
   const hashtags = post.content.match(hashtagRegex) || [];
   
@@ -287,7 +265,7 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
               <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="h-10 w-10 rounded-lg bg-eduBlue/10 flex items-center justify-center mr-3">
                   {media.type === 'document' ? (
-                    <FileText className="h-5 w-5 text-eduBlue" />
+                    <FileTextIcon className="h-5 w-5 text-eduBlue" />
                   ) : (
                     <BookOpen className="h-5 w-5 text-eduTeal" />
                   )}
@@ -315,15 +293,15 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
         <div className="flex items-center justify-between w-full">
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduBlue hover:bg-eduBlue/5">
             <ThumbsUp className="h-4 w-4 mr-1" />
-            <span className="text-xs">{likes}</span>
+            <span className="text-xs">{post.likes || 0}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduPurple hover:bg-eduPurple/5">
             <MessageCircle className="h-4 w-4 mr-1" />
-            <span className="text-xs">{comments}</span>
+            <span className="text-xs">{post.comments || 0}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduTeal hover:bg-eduTeal/5">
             <Share2 className="h-4 w-4 mr-1" />
-            <span className="text-xs">{shares}</span>
+            <span className="text-xs">{post.shares || 0}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-eduOrange hover:bg-eduOrange/5">
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -337,12 +315,23 @@ const PostItem: React.FC<{post: Post}> = ({ post }) => {
 
 const HomePage: React.FC = () => {
   const { auth } = useAuth();
+  const navigate = useNavigate();
   const userRole = auth.userData?.role || 'student';
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      toast.error('Please log in to access this page');
+      navigate('/login');
+    }
+  }, [auth.isAuthenticated, navigate]);
   
   useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    
     const fetchPosts = async () => {
       try {
         setLoading(true);
@@ -371,9 +360,9 @@ const HomePage: React.FC = () => {
               name: post.profiles.name,
               role: post.profiles.role
             } : undefined,
-            likes: Math.floor(Math.random() * 50) + 1,
-            comments: Math.floor(Math.random() * 20),
-            shares: Math.floor(Math.random() * 10)
+            likes: 0,
+            comments: 0,
+            shares: 0
           }));
           
           setPosts(transformedPosts);
@@ -401,12 +390,14 @@ const HomePage: React.FC = () => {
     return () => {
       supabase.removeChannel(postsSubscription);
     };
-  }, []);
+  }, [auth.isAuthenticated]);
+  
+  if (!auth.isAuthenticated) {
+    return null;
+  }
   
   return (
     <div className="page-container pb-20">
-      <DemoNotification />
-      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="hidden lg:block lg:col-span-3">
           <div className="space-y-6 sticky top-20">
@@ -576,7 +567,7 @@ const HomePage: React.FC = () => {
                                 {post.content.substring(0, 30)}...
                               </h4>
                               <p className="text-xs text-gray-500">
-                                {Math.floor(Math.random() * 100) + 50} engagements
+                                {post.comments || 0} engagements
                               </p>
                             </div>
                           </div>
